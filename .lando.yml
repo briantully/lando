@@ -1,0 +1,70 @@
+name: lando
+recipe: drupal8
+config:
+  php: '7.3'
+  webroot: docroot
+  database: mysql:5.7
+  xdebug: false
+  drush: ^9
+
+tooling:
+  blt:
+    service: appserver
+    cmd: /app/vendor/bin/blt
+  xdebug-on:
+    service: appserver
+    description: Enable xdebug for nginx.
+    cmd: docker-php-ext-enable xdebug && pkill -o -USR2 php-fpm
+    user: root
+  xdebug-off:
+    service: appserver
+    description: Disable xdebug for nginx.
+    cmd: rm /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini && pkill -o -USR2 php-fpm
+    user: root
+
+services:
+  node:
+    type: node:10.14.2
+  database:
+    type: mysql:5.7
+    portforward: false
+    creds:
+      user: drupal
+      password: drupal
+      database: drupal
+  web:
+    type: nginx:1.14.2
+    webroot: docroot
+  edge:
+    type: varnish:4.1
+    backends:
+      - appserver
+    ssl: true
+  cache:
+    type: memcached:1.5.11
+  search:
+    type: solr:4
+    portforward: false
+    core: drupal8
+    config:
+      dir: docroot/modules/contrib/search_api_solr/solr-conf/4.x
+
+# Add in routes to the varnish cli tools
+varnishadm:
+  service: edge
+  user: root
+varnishstat:
+  service: edge
+  user: root
+varnishlog:
+  service: edge
+  user: root
+
+# add in the varnish edge
+proxy:
+
+  # Empty the proxy settings provided by drupal8 recipe
+  web:
+
+  edge:
+    - edge.acquia.lndo.site
